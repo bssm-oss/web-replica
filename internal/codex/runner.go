@@ -5,8 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/bssm-oss/web-replica/internal/fsutil"
 	"github.com/bssm-oss/web-replica/internal/logging"
@@ -53,8 +55,8 @@ func Run(ctx context.Context, opts RunOptions) (RunResult, error) {
 	cmd.Dir = absOutputDir
 	var stdoutBuf bytes.Buffer
 	var stderrBuf bytes.Buffer
-	cmd.Stdout = io.MultiWriter(&stdoutBuf)
-	cmd.Stderr = io.MultiWriter(&stderrBuf)
+	cmd.Stdout = io.MultiWriter(&stdoutBuf, os.Stdout)
+	cmd.Stderr = io.MultiWriter(&stderrBuf, os.Stderr)
 	err = cmd.Run()
 	logPath := filepath.Join(opts.RunDir, "codex-output.log")
 	logPayload := "STDOUT\n" + logging.RedactSecrets(stdoutBuf.String()) + "\n\nSTDERR\n" + logging.RedactSecrets(stderrBuf.String()) + "\n"
@@ -65,7 +67,12 @@ func Run(ctx context.Context, opts RunOptions) (RunResult, error) {
 		opts.Logger.Verbosef("Ran Codex executable %s with %d args", filepath.Base(exe), len(args))
 	}
 	if err != nil {
-		return RunResult{Stdout: stdoutBuf.String(), Stderr: stderrBuf.String(), LogPath: logPath}, fmt.Errorf("codex exec failed: %w", err)
+		message := fmt.Sprintf("codex exec failed: %v", err)
+		stderr := strings.ToLower(stderrBuf.String())
+		if strings.Contains(stderr, "auth") || strings.Contains(stderr, "login") || strings.Contains(stderr, "token") {
+			message += ". Run `codex` to complete the official login flow, or follow the Codex CLI API-key login instructions."
+		}
+		return RunResult{Stdout: stdoutBuf.String(), Stderr: stderrBuf.String(), LogPath: logPath}, fmt.Errorf("%s", message)
 	}
 	return RunResult{Stdout: stdoutBuf.String(), Stderr: stderrBuf.String(), LogPath: logPath}, nil
 }

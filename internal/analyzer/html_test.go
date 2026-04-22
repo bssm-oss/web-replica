@@ -11,12 +11,15 @@ func TestAnalyzeHTML(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read fixture: %v", err)
 	}
-	result, err := AnalyzeHTML(payload, "https://example.com")
+	result, err := AnalyzeHTML(payload, "https://example.com", false)
 	if err != nil {
 		t.Fatalf("AnalyzeHTML returned error: %v", err)
 	}
 	if result.Title != "Example Product" {
 		t.Fatalf("unexpected title: %q", result.Title)
+	}
+	if result.ContentSummary == "" || result.ContentSummary == "Create modern landing pages without copying protected content." {
+		t.Fatalf("expected summarized content purpose, got %q", result.ContentSummary)
 	}
 	if len(result.Structure.Headings) == 0 || result.Structure.Headings[0].Text != "Launch better product sites" {
 		t.Fatalf("expected heading extraction, got %#v", result.Structure.Headings)

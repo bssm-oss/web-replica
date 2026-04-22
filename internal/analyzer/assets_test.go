@@ -1,8 +1,15 @@
 package analyzer
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/bssm-oss/web-replica/internal/spec"
 )
 
 func TestFilterAssetCandidate(t *testing.T) {
@@ -30,5 +37,32 @@ func TestFilterAssetCandidate(t *testing.T) {
 				t.Fatalf("expected local path %q, got %q", tt.wantLocalPath, entry.LocalPath)
 			}
 		})
+	}
+}
+
+func TestDownloadOwnedAssets(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/images/logo.png" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte("png-data"))
+	}))
+	defer server.Close()
+	assets := []spec.AssetEntry{{URL: server.URL + "/images/logo.png", MimeType: "image", Allowed: true, LocalPath: "logo.png", Reason: "same-origin owned asset allowed"}}
+	runDir := t.TempDir()
+	updated := DownloadOwnedAssets(context.Background(), assets, runDir, nil)
+	if len(updated) != 1 {
+		t.Fatalf("expected one asset, got %d", len(updated))
+	}
+	if !updated[0].Allowed {
+		t.Fatalf("expected asset to remain allowed: %#v", updated[0])
+	}
+	if updated[0].LocalPath == "" {
+		t.Fatalf("expected downloaded local path, got %#v", updated[0])
+	}
+	if _, err := os.Stat(filepath.Join(runDir, filepath.FromSlash(updated[0].LocalPath))); err != nil {
+		t.Fatalf("expected downloaded asset file to exist: %v", err)
 	}
 }

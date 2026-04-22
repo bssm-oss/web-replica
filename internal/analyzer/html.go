@@ -23,7 +23,7 @@ type HTMLAnalysis struct {
 	TextFragments   []string           `json:"text_fragments"`
 }
 
-func AnalyzeHTML(input []byte, sourceURL string) (HTMLAnalysis, error) {
+func AnalyzeHTML(input []byte, sourceURL string, allowOwnedAssets bool) (HTMLAnalysis, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(input))
 	if err != nil {
 		return HTMLAnalysis{}, fmt.Errorf("parse html: %w", err)
@@ -36,9 +36,9 @@ func AnalyzeHTML(input []byte, sourceURL string) (HTMLAnalysis, error) {
 	result.Language, _ = doc.Find("html").Attr("lang")
 	result.ViewportMeta, _ = doc.Find(`meta[name="viewport"]`).Attr("content")
 	result.Structure = ExtractStructure(doc)
-	result.CandidateAssets = CollectAssetCandidates(doc, sourceURL)
+	result.CandidateAssets = CollectAssetCandidates(doc, sourceURL, allowOwnedAssets)
 	result.TextFragments = collectTextFragments(doc)
-	result.ContentSummary = spec.SummarizeText(result.TextFragments)
+	result.ContentSummary = summarizePagePurpose(result)
 	result.ButtonTexts = collectButtonTexts(doc)
 	result.LandmarkTexts = collectLandmarkTexts(doc)
 	return result, nil
@@ -84,4 +84,36 @@ func collectLandmarkTexts(doc *goquery.Document) []string {
 		}
 	})
 	return items
+}
+
+func summarizePagePurpose(result HTMLAnalysis) string {
+	headingCount := len(result.Structure.Headings)
+	navCount := len(result.Structure.Navigation)
+	sectionCount := len(result.Structure.Sections)
+	formCount := len(result.Structure.Forms)
+	imageCount := len(result.Structure.Images)
+	buttonCount := len(result.ButtonTexts)
+	if headingCount == 0 && navCount == 0 && sectionCount == 0 && formCount == 0 && imageCount == 0 && buttonCount == 0 {
+		return "Public webpage analyzed for layout, content structure, and responsive frontend reimplementation guidance."
+	}
+	parts := []string{"Public webpage analyzed for safe inspired reimplementation"}
+	if headingCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d heading group(s) detected", headingCount))
+	}
+	if navCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d navigation item(s)", navCount))
+	}
+	if sectionCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d major section candidate(s)", sectionCount))
+	}
+	if formCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d form(s)", formCount))
+	}
+	if buttonCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d call-to-action element(s)", buttonCount))
+	}
+	if imageCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d image asset(s)", imageCount))
+	}
+	return strings.Join(parts, "; ") + "."
 }

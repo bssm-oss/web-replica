@@ -54,7 +54,7 @@ func RunDoctor(ctx context.Context, logger *logging.Logger) error {
 func RunPreview(ctx context.Context, targetPath string, port int, logger *logging.Logger) error {
 	packageJSON := filepath.Join(targetPath, "package.json")
 	if _, err := os.Stat(packageJSON); err == nil {
-		for _, args := range [][]string{{"npm", "run", "preview", "--", "--port", fmt.Sprintf("%d", port)}, {"npm", "run", "dev", "--", "--port", fmt.Sprintf("%d", port)}} {
+		for _, args := range previewCommands(port) {
 			cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 			cmd.Dir = targetPath
 			cmd.Stdout = os.Stdout
@@ -71,6 +71,10 @@ func RunPreview(ctx context.Context, targetPath string, port int, logger *loggin
 		return nil
 	}
 	return fmt.Errorf("no previewable project found in %s", targetPath)
+}
+
+func previewCommands(port int) [][]string {
+	return [][]string{{"npm", "run", "preview", "--", "--port", fmt.Sprintf("%d", port)}, {"npm", "run", "dev", "--", "--port", fmt.Sprintf("%d", port)}}
 }
 
 func runProbe(ctx context.Context, name string, args ...string) (string, error) {

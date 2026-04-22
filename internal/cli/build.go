@@ -46,17 +46,28 @@ func newBuildCmd(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_, err = validator.RunBuildAndRepair(ctx, validator.Config{
+			validation, err := validator.RunBuildAndRepair(ctx, validator.Config{
 				ProjectDir:        generation.ProjectDir,
 				RunDir:            analysis.RunDir,
 				SourceURL:         args[0],
 				DesignSpecPath:    analysis.DesignSpecPath,
 				CodexModel:        opts.CodexModel,
 				CodexApprovalMode: opts.CodexApprovalMode,
+				MaxRepairAttempts: 2,
 				Timeout:           opts.Timeout,
 				Logger:            logger,
 			})
-			return err
+			if err != nil {
+				return err
+			}
+			logger.Infof("Build completed successfully.")
+			logger.Infof("Run directory: %s", analysis.RunDir)
+			logger.Infof("Generated project: %s", generation.ProjectDir)
+			logger.Infof("Build log: %s", validation.Build.LogPath)
+			logger.Infof("Next steps:")
+			logger.Infof("  cd %s", generation.ProjectDir)
+			logger.Infof("  npm run preview")
+			return nil
 		},
 	}
 }

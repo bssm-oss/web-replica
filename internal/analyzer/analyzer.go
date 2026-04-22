@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/bssm-oss/web-replica/internal/browser"
@@ -21,12 +22,13 @@ type Config struct {
 }
 
 type Result struct {
-	RunDir         string
-	DesignSpecPath string
-	BriefPath      string
-	RawOutlinePath string
-	ScreenshotsDir string
-	DesignSpec     spec.DesignSpec
+	RunDir          string
+	DesignSpecPath  string
+	BriefPath       string
+	RawOutlinePath  string
+	ScreenshotsDir  string
+	AnalyzerLogPath string
+	DesignSpec      spec.DesignSpec
 }
 
 func Run(ctx context.Context, cfg Config) (Result, error) {
@@ -45,9 +47,12 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	htmlAnalysis, err := AnalyzeHTML(fetched.Body, validated.Normalized)
+	htmlAnalysis, err := AnalyzeHTML(fetched.Body, validated.Normalized, cfg.AllowOwnedAssets)
 	if err != nil {
 		return Result{}, err
+	}
+	if cfg.AllowOwnedAssets {
+		htmlAnalysis.CandidateAssets = DownloadOwnedAssets(ctx, htmlAnalysis.CandidateAssets, layout.RunDir, cfg.Logger)
 	}
 	viewports, err := browser.ResolveViewports(cfg.ViewportSelector)
 	if err != nil {
@@ -61,6 +66,7 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	designSpecPath := filepath.Join(layout.RunDir, "design-spec.json")
 	briefPath := filepath.Join(layout.RunDir, "brief.md")
 	rawOutlinePath := filepath.Join(layout.RunDir, "raw-outline.json")
+	analyzerLogPath := filepath.Join(layout.RunDir, "analyzer.log")
 	if err := spec.WriteDesignSpec(designSpecPath, designSpec); err != nil {
 		return Result{}, err
 	}
@@ -70,10 +76,13 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	if err := spec.WriteJSON(rawOutlinePath, htmlAnalysis); err != nil {
 		return Result{}, err
 	}
+	if err := fsutil.SafeWriteFile(analyzerLogPath, []byte(buildAnalyzerLog(validated, fetched, htmlAnalysis, captures)), 0o644); err != nil {
+		return Result{}, err
+	}
 	if cfg.Logger != nil {
 		cfg.Logger.Verbosef("Analysis artifacts written to %s", layout.RunDir)
 	}
-	return Result{RunDir: layout.RunDir, DesignSpecPath: designSpecPath, BriefPath: briefPath, RawOutlinePath: rawOutlinePath, ScreenshotsDir: layout.ScreenshotsDir, DesignSpec: designSpec}, nil
+	return Result{RunDir: layout.RunDir, DesignSpecPath: designSpecPath, BriefPath: briefPath, RawOutlinePath: rawOutlinePath, ScreenshotsDir: layout.ScreenshotsDir, AnalyzerLogPath: analyzerLogPath, DesignSpec: designSpec}, nil
 }
 
 func buildDesignSpec(validated ValidatedURL, fetched FetchedPage, htmlAnalysis HTMLAnalysis, captures []browser.ViewportCapture, runDir string, allowOwnedAssets bool) spec.DesignSpec {
@@ -125,12 +134,33 @@ func filterAssets(assets []spec.AssetEntry, mimeType string, allowOwnedAssets bo
 	items := []spec.AssetEntry{}
 	for _, asset := range assets {
 		if asset.MimeType == mimeType {
-			asset.Allowed = asset.Allowed && allowOwnedAssets
-			if !asset.Allowed && asset.Reason == "same-origin owned asset allowed" {
+			if !allowOwnedAssets && asset.Allowed {
+				asset.Allowed = false
+				asset.LocalPath = ""
 				asset.Reason = "asset downloads disabled without --allow-owned-assets"
 			}
 			items = append(items, asset)
 		}
 	}
 	return items
+}
+
+func buildAnalyzerLog(validated ValidatedURL, fetched FetchedPage, htmlAnalysis HTMLAnalysis, captures []browser.ViewportCapture) string {
+	log := "Siteforge Analyzer\n\n"
+	log += "Source URL: " + validated.Source + "\n"
+	log += "Normalized URL: " + validated.Normalized + "\n"
+	log += "Hostname: " + validated.Hostname + "\n"
+	log += "Scheme: " + validated.Scheme + "\n"
+	log += "Fetched At: " + fetched.FetchedAt.Format(time.RFC3339) + "\n"
+	log += "Content Type: " + fetched.ContentType + "\n"
+	log += "Headings: " + strconv.Itoa(len(htmlAnalysis.Structure.Headings)) + "\n"
+	log += "Navigation Items: " + strconv.Itoa(len(htmlAnalysis.Structure.Navigation)) + "\n"
+	log += "Sections: " + strconv.Itoa(len(htmlAnalysis.Structure.Sections)) + "\n"
+	log += "Forms: " + strconv.Itoa(len(htmlAnalysis.Structure.Forms)) + "\n"
+	log += "Links: " + strconv.Itoa(len(htmlAnalysis.Structure.Links)) + "\n"
+	log += "Images: " + strconv.Itoa(len(htmlAnalysis.Structure.Images)) + "\n"
+	for _, capture := range captures {
+		log += "Viewport " + capture.Viewport.Name + ": " + capture.ScreenshotPath + "\n"
+	}
+	return log
 }
