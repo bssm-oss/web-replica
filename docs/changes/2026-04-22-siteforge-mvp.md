@@ -21,6 +21,8 @@
 - build 성공 후에도 blank page / overflow / body text 누락을 visual validation 실패로 간주하도록 repair loop 강화
 - `npm ci` 실패 시 lock drift 복구를 위해 `npm install` fallback 추가
 - Codex live output 스트리밍에도 secret redaction 적용
+- non-interactive `codex exec` 가 로컬 MCP/플러그인 설정에 끌려가지 않도록 ephemeral + feature disable + empty `mcp_servers` override 적용
+- non-interactive generator 프롬프트에 “즉시 scaffold 시작, 외부 탐색 금지” 제약 추가
 - README, AGENTS, CI, 테스트 추가
 
 ## 설계 이유

@@ -17,7 +17,17 @@ func BuildArgs(opts CommandOptions) ([]string, error) {
 	if opts.Prompt == "" {
 		return nil, errors.New("prompt is required")
 	}
-	args := []string{"exec", "--skip-git-repo-check"}
+	args := []string{
+		"exec",
+		"--skip-git-repo-check",
+		"--ephemeral",
+		"--disable", "plugins",
+		"--disable", "apps",
+		"--disable", "multi_agent",
+		"-c", `model_reasoning_effort="medium"`,
+		"-c", `developer_instructions=""`,
+		"-c", `mcp_servers={}`,
+	}
 	switch opts.ApprovalMode {
 	case "", "on-request":
 		args = append(args, "-c", `approval_policy="on-request"`, "--sandbox", "workspace-write")

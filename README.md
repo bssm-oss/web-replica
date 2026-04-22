@@ -113,6 +113,7 @@ go run ./cmd/siteforge preview ./generated-site
 - 추적/광고/analytics/pixel 계열 asset 은 차단합니다.
 - `--allow-owned-assets` 플래그가 없으면 원칙적으로 placeholder 를 사용합니다.
 - Codex 인증 파일을 읽거나 출력하지 않습니다.
+- non-interactive `siteforge generate/build` 는 로컬 Codex MCP/플러그인 설정에 끌려가지 않도록 격리 옵션으로 실행합니다.
 
 ## 테스트 / 검증
 
@@ -154,6 +155,7 @@ testdata/                HTML fixture
 - 생성 품질은 Codex 결과와 대상 사이트 구조에 영향을 받습니다.
 - `preview` 는 프레임워크별 고급 런타임 관리 대신 MVP 수준 동작을 제공합니다.
 - 현재 설치된 일부 Codex CLI 버전의 `codex exec` 는 approval override를 무시하고 `never` 로 동작할 수 있습니다. Siteforge는 실행 중 이 상황을 감지해 경고를 출력합니다.
+- Codex 자체 최종 요약 메시지가 실제 `npm install` / `npm run build` 결과와 다를 수 있으므로, Siteforge는 항상 후속 validator 실행 결과를 기준으로 성공/실패를 판정합니다.
 
 ## 향후 계획
 
