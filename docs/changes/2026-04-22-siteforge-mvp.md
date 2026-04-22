@@ -40,6 +40,7 @@
 - 브라우저 기반 검증은 로컬 Chrome/Chromium 설치에 의존한다.
 - Codex 품질은 모델 응답에 따라 달라질 수 있다.
 - future stack은 placeholder 수준이다.
+- 일부 Codex CLI 버전은 non-interactive `exec` 에서 approval override를 반영하지 않을 수 있으며, 이 경우 Siteforge는 경고만 출력할 수 있다.
 
 ## 후속 과제
 
