@@ -31,6 +31,7 @@ func newAnalyzeCmd(opts *Options) *cobra.Command {
 			}
 			logger.Infof("design-spec.json: %s", result.DesignSpecPath)
 			logger.Infof("brief.md: %s", result.BriefPath)
+			logger.Infof("analyzer.log: %s", result.AnalyzerLogPath)
 			logger.Infof("screenshots: %s", result.ScreenshotsDir)
 			fmt.Fprintf(cmd.OutOrStdout(), "Siteforge analysis complete: %s\n", result.RunDir)
 			return nil

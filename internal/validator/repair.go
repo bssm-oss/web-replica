@@ -20,6 +20,7 @@ type Config struct {
 	DesignSpecPath    string
 	CodexModel        string
 	CodexApprovalMode string
+	MaxRepairAttempts int
 	Timeout           time.Duration
 	Logger            *logging.Logger
 }
@@ -29,32 +30,42 @@ type Result struct {
 	Notes []string
 }
 
+var (
+	buildProjectFn           = BuildProject
+	captureValidationNotesFn = CaptureValidationNotes
+	runRepairFn              = runRepair
+)
+
 func RunBuildAndRepair(ctx context.Context, cfg Config) (Result, error) {
-	buildResult, err := BuildProject(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
-	if err == nil {
-		notes, noteErr := CaptureValidationNotes(ctx, cfg.ProjectDir, cfg.RunDir)
-		if noteErr == nil {
-			return Result{Build: buildResult, Notes: notes}, nil
+	attempts := cfg.MaxRepairAttempts
+	if attempts <= 0 {
+		attempts = 2
+	}
+	var lastBuild BuildResult
+	var lastNotes []string
+	for attempt := 0; attempt <= attempts; attempt++ {
+		buildResult, err := buildProjectFn(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
+		if err == nil {
+			notes, noteErr := captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
+			if noteErr == nil {
+				return Result{Build: buildResult, Notes: notes}, nil
+			}
+			return Result{Build: buildResult}, nil
 		}
-		return Result{Build: buildResult}, nil
-	}
-	notes, _ := CaptureValidationNotes(ctx, cfg.ProjectDir, cfg.RunDir)
-	repairErr := runRepair(ctx, cfg, buildResult.Output, notes)
-	if repairErr != nil {
-		rebuilt, rebuildErr := BuildProject(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
-		if rebuildErr == nil {
-			finalNotes, _ := CaptureValidationNotes(ctx, cfg.ProjectDir, cfg.RunDir)
-			finalNotes = append(finalNotes, fmt.Sprintf("repair command reported an error but build passed afterward: %v", repairErr))
-			return Result{Build: rebuilt, Notes: finalNotes}, nil
+		lastBuild = buildResult
+		lastNotes, _ = captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
+		if attempt == attempts {
+			return Result{Build: buildResult, Notes: lastNotes}, err
 		}
-		return Result{Build: buildResult, Notes: notes}, fmt.Errorf("initial build failed and repair failed: %w", repairErr)
+		repairErr := runRepairFn(ctx, cfg, buildResult.Output, lastNotes)
+		if repairErr != nil {
+			if cfg.Logger != nil {
+				cfg.Logger.Warnf("Repair attempt %d failed: %v", attempt+1, repairErr)
+			}
+			continue
+		}
 	}
-	rebuilt, rebuildErr := BuildProject(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
-	if rebuildErr != nil {
-		return Result{Build: rebuilt, Notes: notes}, rebuildErr
-	}
-	finalNotes, _ := CaptureValidationNotes(ctx, cfg.ProjectDir, cfg.RunDir)
-	return Result{Build: rebuilt, Notes: finalNotes}, nil
+	return Result{Build: lastBuild, Notes: lastNotes}, fmt.Errorf("build failed after %d repair attempt(s)", attempts)
 }
 
 func runRepair(ctx context.Context, cfg Config, buildLogs string, validationNotes []string) error {

@@ -19,8 +19,24 @@ func TestBuildArgs(t *testing.T) {
 	if contains(args, "--dangerously-bypass-approvals-and-sandbox") || contains(args, "--yolo") {
 		t.Fatal("dangerous mode flags must not be present by default")
 	}
+	if !contains(args, `approval_policy="on-request"`) {
+		t.Fatalf("expected approval policy config override, got %#v", args)
+	}
 	if args[len(args)-1] != "make app" {
 		t.Fatalf("expected prompt to remain a single final arg, got %#v", args)
+	}
+}
+
+func TestBuildArgsNeverDoesNotUseFullAuto(t *testing.T) {
+	args, err := BuildArgs(CommandOptions{ApprovalMode: "never", OutputDir: "./generated-site", Prompt: "make app"})
+	if err != nil {
+		t.Fatalf("BuildArgs error: %v", err)
+	}
+	if contains(args, "--full-auto") {
+		t.Fatalf("never mode must not be mapped to --full-auto: %#v", args)
+	}
+	if !contains(args, `approval_policy="never"`) {
+		t.Fatalf("expected never approval policy config override, got %#v", args)
 	}
 }
 

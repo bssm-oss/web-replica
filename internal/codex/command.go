@@ -20,11 +20,11 @@ func BuildArgs(opts CommandOptions) ([]string, error) {
 	args := []string{"exec", "--skip-git-repo-check"}
 	switch opts.ApprovalMode {
 	case "", "on-request":
-		args = append(args, "--sandbox", "workspace-write")
+		args = append(args, "-c", `approval_policy="on-request"`, "--sandbox", "workspace-write")
 	case "untrusted":
-		args = append(args, "--sandbox", "read-only")
+		args = append(args, "-c", `approval_policy="untrusted"`, "--sandbox", "workspace-write")
 	case "never":
-		args = append(args, "--full-auto")
+		args = append(args, "-c", `approval_policy="never"`, "--sandbox", "workspace-write")
 	default:
 		return nil, fmt.Errorf("unsupported codex approval mode %q", opts.ApprovalMode)
 	}
