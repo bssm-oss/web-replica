@@ -47,10 +47,39 @@ func RunBuildAndRepair(ctx context.Context, cfg Config) (Result, error) {
 		buildResult, err := buildProjectFn(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
 		if err == nil {
 			notes, noteErr := captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
-			if noteErr == nil {
-				return Result{Build: buildResult, Notes: notes}, nil
+			if noteErr != nil {
+				return Result{Build: buildResult}, nil
 			}
-			return Result{Build: buildResult}, nil
+			if needsRepair, reason := notesRequireRepair(notes); !needsRepair {
+				return Result{Build: buildResult, Notes: notes}, nil
+			} else {
+				lastBuild = buildResult
+				lastNotes = notes
+				if attempt == attempts {
+					return Result{Build: buildResult, Notes: notes}, fmt.Errorf("visual validation failed after %d repair attempt(s): %s", attempts, reason)
+				}
+				repairErr := runRepairFn(ctx, cfg, buildResult.Output, notes)
+				if repairErr != nil {
+					rebuilt, rebuildErr := buildProjectFn(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
+					if rebuildErr == nil {
+						finalNotes, _ := captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
+						needsRepairAgain, finalReason := notesRequireRepair(finalNotes)
+						if !needsRepairAgain {
+							finalNotes = append(finalNotes, fmt.Sprintf("repair command reported an error but the subsequent build passed: %v", repairErr))
+							return Result{Build: rebuilt, Notes: finalNotes}, nil
+						}
+						lastBuild = rebuilt
+						lastNotes = finalNotes
+						if attempt == attempts {
+							return Result{Build: rebuilt, Notes: finalNotes}, fmt.Errorf("visual validation failed after repair error: %s", finalReason)
+						}
+					}
+					if cfg.Logger != nil {
+						cfg.Logger.Warnf("Repair attempt %d failed: %v", attempt+1, repairErr)
+					}
+				}
+				continue
+			}
 		}
 		lastBuild = buildResult
 		lastNotes, _ = captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
@@ -59,6 +88,12 @@ func RunBuildAndRepair(ctx context.Context, cfg Config) (Result, error) {
 		}
 		repairErr := runRepairFn(ctx, cfg, buildResult.Output, lastNotes)
 		if repairErr != nil {
+			rebuilt, rebuildErr := buildProjectFn(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
+			if rebuildErr == nil {
+				finalNotes, _ := captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
+				finalNotes = append(finalNotes, fmt.Sprintf("repair command reported an error but the subsequent build passed: %v", repairErr))
+				return Result{Build: rebuilt, Notes: finalNotes}, nil
+			}
 			if cfg.Logger != nil {
 				cfg.Logger.Warnf("Repair attempt %d failed: %v", attempt+1, repairErr)
 			}
@@ -101,4 +136,22 @@ func joinNotes(items []string) string {
 		value += "- " + item + "\n"
 	}
 	return value
+}
+
+func notesRequireRepair(items []string) (bool, string) {
+	problemNotes := []string{}
+	for _, item := range items {
+		switch {
+		case item == "body text missing in generated page":
+			problemNotes = append(problemNotes, item)
+		case item == "horizontal overflow detected in generated page":
+			problemNotes = append(problemNotes, item)
+		case item == "blank page detected":
+			problemNotes = append(problemNotes, item)
+		}
+	}
+	if len(problemNotes) == 0 {
+		return false, ""
+	}
+	return true, joinNotes(problemNotes)
 }

@@ -76,3 +76,28 @@ func TestRunBuildAndRepairStopsAfterMaxAttempts(t *testing.T) {
 		t.Fatalf("expected 2 repair attempts, got %d", repairCalls)
 	}
 }
+
+func TestNotesRequireRepair(t *testing.T) {
+	needsRepair, reason := notesRequireRepair([]string{
+		"generated screenshot saved: test.png",
+		"body text missing in generated page",
+		"blank page detected",
+	})
+	if !needsRepair {
+		t.Fatal("expected notes to require repair")
+	}
+	if reason == "" {
+		t.Fatal("expected repair reason to be populated")
+	}
+}
+
+func TestNotesRequireRepairIgnoresHealthyNotes(t *testing.T) {
+	needsRepair, reason := notesRequireRepair([]string{
+		"generated screenshot saved: test.png",
+		"body text detected in generated page",
+		"generated page height: 1200",
+	})
+	if needsRepair {
+		t.Fatalf("expected notes to be considered healthy, got %q", reason)
+	}
+}

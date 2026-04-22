@@ -8,7 +8,15 @@ import (
 )
 
 func ExtractStructure(doc *goquery.Document) spec.PageStructure {
-	structure := spec.PageStructure{}
+	structure := spec.PageStructure{
+		Landmarks:  []spec.Landmark{},
+		Headings:   []spec.Heading{},
+		Navigation: []spec.NavItem{},
+		Sections:   []spec.Section{},
+		Forms:      []spec.FormSummary{},
+		Links:      []spec.LinkSummary{},
+		Images:     []spec.ImageSummary{},
+	}
 	doc.Find("header, nav, main, footer, [role]").Each(func(_ int, s *goquery.Selection) {
 		if tag := goquery.NodeName(s); tag != "" {
 			role, _ := s.Attr("role")

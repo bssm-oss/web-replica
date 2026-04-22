@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/bssm-oss/web-replica/internal/fsutil"
@@ -19,6 +21,29 @@ import (
 var blockedAssetKeywords = []string{"google-analytics", "googletagmanager", "facebook", "doubleclick", "hotjar", "segment", "mixpanel", "amplitude", "pixel", "tracker", "ads", "analytics"}
 
 const maxOwnedAssetBytes int64 = 5 << 20
+
+var (
+	validateAssetHostFn = validateHost
+	assetHTTPClientFn   = newOwnedAssetHTTPClient
+)
+
+var allowedAssetExtensions = map[string]map[string]bool{
+	"image": {
+		".png":  true,
+		".jpg":  true,
+		".jpeg": true,
+		".gif":  true,
+		".webp": true,
+		".svg":  true,
+		".avif": true,
+	},
+	"font": {
+		".woff":  true,
+		".woff2": true,
+		".ttf":   true,
+		".otf":   true,
+	},
+}
 
 func CollectAssetCandidates(doc *goquery.Document, sourceURL string, allowOwnedAssets bool) []spec.AssetEntry {
 	base, _ := url.Parse(sourceURL)
@@ -36,12 +61,19 @@ func CollectAssetCandidates(doc *goquery.Document, sourceURL string, allowOwnedA
 
 func DownloadOwnedAssets(ctx context.Context, assets []spec.AssetEntry, runDir string, logger *logging.Logger) []spec.AssetEntry {
 	updated := make([]spec.AssetEntry, 0, len(assets))
-	client := &http.Client{}
 	for _, asset := range assets {
 		if !asset.Allowed {
 			updated = append(updated, asset)
 			continue
 		}
+		assetURL, err := url.Parse(asset.URL)
+		if err != nil {
+			asset.Allowed = false
+			asset.Reason = "asset url parse failed"
+			updated = append(updated, asset)
+			continue
+		}
+		client := assetHTTPClientFn(ctx, assetURL)
 		relDir := filepath.ToSlash(filepath.Join("owned-assets", assetTypeDir(asset.MimeType)))
 		relPath := filepath.ToSlash(filepath.Join(relDir, sanitizedAssetName(asset.LocalPath)))
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.URL, nil)
@@ -51,6 +83,7 @@ func DownloadOwnedAssets(ctx context.Context, assets []spec.AssetEntry, runDir s
 			updated = append(updated, asset)
 			continue
 		}
+		req.Header.Set("User-Agent", userAgent)
 		resp, err := client.Do(req)
 		if err != nil {
 			asset.Allowed = false
@@ -109,13 +142,22 @@ func FilterAssetCandidate(base *url.URL, rawURL string, mimeType string, allowOw
 	if err != nil {
 		return spec.AssetEntry{URL: rawURL, MimeType: mimeType, Allowed: false, Reason: "invalid asset url"}
 	}
+	if resolved.Scheme != "http" && resolved.Scheme != "https" {
+		return spec.AssetEntry{URL: resolved.String(), MimeType: mimeType, Allowed: false, Reason: "unsupported asset scheme", LocalPath: sanitizedAssetName(resolved.Path)}
+	}
 	lower := strings.ToLower(resolved.String())
 	for _, keyword := range blockedAssetKeywords {
 		if strings.Contains(lower, keyword) {
 			return spec.AssetEntry{URL: resolved.String(), MimeType: mimeType, Allowed: false, Reason: "tracking or advertising asset blocked", LocalPath: sanitizedAssetName(resolved.Path)}
 		}
 	}
-	sameOrigin := base != nil && strings.EqualFold(base.Hostname(), resolved.Hostname())
+	sameOrigin := base != nil &&
+		strings.EqualFold(base.Scheme, resolved.Scheme) &&
+		strings.EqualFold(base.Host, resolved.Host)
+	localPath := sanitizedAssetName(resolved.Path)
+	if !hasAllowedAssetExtension(resolved.Path, mimeType) {
+		return spec.AssetEntry{URL: resolved.String(), MimeType: mimeType, Allowed: false, Reason: "asset extension blocked by policy", LocalPath: localPath}
+	}
 	allowed := allowOwnedAssets && sameOrigin && (mimeType == "image" || mimeType == "font")
 	reason := "placeholders used by default"
 	if allowed {
@@ -125,7 +167,7 @@ func FilterAssetCandidate(base *url.URL, rawURL string, mimeType string, allowOw
 		allowed = false
 		reason = "script downloads are never allowed"
 	}
-	return spec.AssetEntry{URL: resolved.String(), MimeType: mimeType, Allowed: allowed, Reason: reason, LocalPath: sanitizedAssetName(resolved.Path)}
+	return spec.AssetEntry{URL: resolved.String(), MimeType: mimeType, Allowed: allowed, Reason: reason, LocalPath: localPath}
 }
 
 func mimeTypeMatches(header string, want string) bool {
@@ -159,4 +201,55 @@ func sanitizedAssetName(assetPath string) string {
 		return "asset"
 	}
 	return base
+}
+
+func hasAllowedAssetExtension(assetPath string, mimeType string) bool {
+	ext := strings.ToLower(filepath.Ext(assetPath))
+	allowed, ok := allowedAssetExtensions[mimeType]
+	if !ok || ext == "" {
+		return false
+	}
+	return allowed[ext]
+}
+
+func newOwnedAssetHTTPClient(ctx context.Context, assetURL *url.URL) *http.Client {
+	timeout := 30 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining > 0 {
+			timeout = remaining
+		}
+	}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return nil, err
+			}
+			if err := validateAssetHostFn(ctx, host); err != nil {
+				return nil, err
+			}
+			var d net.Dialer
+			return d.DialContext(ctx, network, address)
+		},
+	}
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= maxRedirects {
+				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+			}
+			if err := validateAssetHostFn(req.Context(), req.URL.Hostname()); err != nil {
+				return err
+			}
+			if assetURL == nil {
+				return nil
+			}
+			if !strings.EqualFold(assetURL.Scheme, req.URL.Scheme) || !strings.EqualFold(assetURL.Host, req.URL.Host) {
+				return fmt.Errorf("asset redirect left same origin")
+			}
+			return nil
+		},
+	}
 }

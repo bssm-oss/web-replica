@@ -37,7 +37,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&opts.CodexModel, "codex-model", "", "Optional Codex model override")
 	cmd.PersistentFlags().StringVar(&opts.CodexApprovalMode, "codex-approval-mode", "on-request", "Codex approval mode: on-request, untrusted, never")
 	cmd.PersistentFlags().BoolVar(&opts.KeepWorkdir, "keep-workdir", false, "Keep temporary work directories after completion")
-	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", 2*time.Minute, "Timeout for network, browser, and Codex operations")
+	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", 20*time.Minute, "Timeout for network, browser, and Codex operations")
 
 	cmd.AddCommand(newDoctorCmd(opts))
 	cmd.AddCommand(newAnalyzeCmd(opts))
