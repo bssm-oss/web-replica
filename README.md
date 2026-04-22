@@ -153,6 +153,7 @@ testdata/                HTML fixture
 - 디자인 토큰 추출은 computed style 샘플 기반의 요약이며, 완전한 디자인 시스템 역추출은 아닙니다.
 - 생성 품질은 Codex 결과와 대상 사이트 구조에 영향을 받습니다.
 - `preview` 는 프레임워크별 고급 런타임 관리 대신 MVP 수준 동작을 제공합니다.
+- 현재 설치된 일부 Codex CLI 버전의 `codex exec` 는 approval override를 무시하고 `never` 로 동작할 수 있습니다. Siteforge는 실행 중 이 상황을 감지해 경고를 출력합니다.
 
 ## 향후 계획
 
