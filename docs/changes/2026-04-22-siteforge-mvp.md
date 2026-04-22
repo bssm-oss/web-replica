@@ -1,0 +1,48 @@
+# 2026-04-22 siteforge MVP
+
+## 배경
+
+저장소가 비어 있었고, 안전한 웹 분석 + Codex 기반 프론트엔드 생성 CLI MVP가 요구되었다.
+
+## 목표
+
+- Go + Cobra 기반 `siteforge` CLI 구현
+- analyze / generate / build / preview / doctor 명령 추가
+- SSRF 방어, secret masking, placeholder 기본 정책 적용
+
+## 변경 내용
+
+- CLI 엔트리포인트와 전역 플래그 추가
+- URL 검증, HTML 분석, chromedp 스크린샷/스타일 추출 구현
+- design-spec / brief / raw-outline 산출물 생성
+- Codex CLI 안전 실행 및 build/repair loop 추가
+- README, AGENTS, CI, 테스트 추가
+
+## 설계 이유
+
+- 빈 저장소이므로 패키지 책임을 명확히 나눈 그린필드 구조를 채택했다.
+- shell 문자열 조합 대신 `exec.CommandContext` arg slice를 사용해 명령 인젝션 위험을 줄였다.
+- 로컬/사설망 기본 차단으로 SSRF 위험을 낮췄다.
+
+## 영향 범위
+
+- 저장소 전체 신규 구성
+
+## 검증 방법
+
+- `go test ./...`
+- `go vet ./...`
+- `go run ./cmd/siteforge doctor`
+- 브라우저/네트워크 가능 시 `siteforge analyze` / `siteforge build`
+
+## 남아 있는 한계
+
+- 브라우저 기반 검증은 로컬 Chrome/Chromium 설치에 의존한다.
+- Codex 품질은 모델 응답에 따라 달라질 수 있다.
+- future stack은 placeholder 수준이다.
+
+## 후속 과제
+
+- Next.js 스택 지원
+- 시각 diff 검증 정교화
+- 멀티 페이지 분석 확장

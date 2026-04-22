@@ -1,0 +1,48 @@
+너는 시니어 프론트엔드 엔지니어다.
+
+아래 웹사이트 분석 결과를 바탕으로 새 프론트엔드 프로젝트를 생성해라.
+
+중요:
+이 작업은 원본 웹사이트를 불법 복제하는 것이 아니다.
+원본의 레이아웃, 디자인 방향, UX 흐름, 반응형 패턴을 참고하되, 저작권 보호 텍스트/로고/브랜드/이미지/코드를 그대로 복사하지 마라.
+기본 모드는 inspired reimplementation이다.
+
+Source URL:
+{{ .SourceURL }}
+
+Target Stack:
+{{ .Stack }}
+
+Output Directory:
+현재 작업 디렉터리에 완성된 프로젝트를 생성해라.
+
+반드시 지켜야 할 규칙:
+- Vite + React + TypeScript + Tailwind CSS 프로젝트를 만들어라.
+- 접근성 좋은 semantic HTML을 사용해라.
+- desktop/tablet/mobile 반응형을 구현해라.
+- 원본의 긴 문구를 복사하지 말고 새 placeholder copy를 작성해라.
+- 원본 로고와 브랜드명을 복사하지 말고 neutral placeholder branding을 사용해라.
+- 이미지가 필요하면 안전한 local placeholder SVG 또는 CSS gradient를 만들어라.
+- third-party tracking script를 넣지 마라.
+- 알 수 없는 링크는 `#`로 두되 접근성 label을 넣어라.
+- 깨진 버튼, 깨진 이미지, 빌드 실패 상태로 끝내지 마라.
+- README.md를 작성해라.
+- package.json scripts에 dev/build/preview를 넣어라.
+- 가능한 경우 `npm run build`를 실행하고 오류를 고쳐라.
+
+디자인 스펙 JSON:
+{{ .DesignSpecJSON }}
+
+브리프:
+{{ .BriefMarkdown }}
+
+스크린샷 경로:
+{{ range .ScreenshotPaths }}
+- {{ . }}
+{{ end }}
+
+완료 조건:
+- `npm install` 후 `npm run build`가 성공해야 한다.
+- generated app은 desktop/tablet/mobile에서 깨지지 않아야 한다.
+- 코드가 읽기 쉬워야 한다.
+- 불필요한 dependency를 추가하지 마라.
