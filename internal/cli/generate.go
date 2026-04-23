@@ -25,6 +25,7 @@ func newGenerateCmd(opts *Options) *cobra.Command {
 				SpecPath:          specPath,
 				OutputDir:         opts.OutDir,
 				Stack:             opts.Stack,
+				Fidelity:          opts.Fidelity,
 				CodexModel:        opts.CodexModel,
 				CodexApprovalMode: opts.CodexApprovalMode,
 				Timeout:           opts.Timeout,

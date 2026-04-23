@@ -22,6 +22,14 @@ webreplica https://원하는사이트.com
 
 `./webreplica` 처럼 현재 폴더 실행 파일 경로를 붙일 필요가 없습니다. GitHub Release 압축 파일 안의 `install.sh` 또는 `install.ps1` 이 `webreplica` 명령을 PATH에 설치해 줍니다.
 
+클론코딩 느낌을 더 강하게 맞추고 싶으면 고충실도 모드를 켤 수 있습니다.
+
+```bash
+webreplica https://원하는사이트.com --fidelity high
+```
+
+`--fidelity high` 는 스크린샷을 더 강하게 참고해 섹션 순서, 여백, 타이포 크기, 색감, 카드/기기 목업, 반응형 흐름을 최대한 가깝게 맞춥니다. 그래도 제3자 사이트의 로고, 브랜드명, 원본 이미지, 장문 문구, 보호 에셋, 추적 스크립트는 복사하지 않습니다.
+
 ## curl로 바로 설치
 
 macOS / Linux에서는 아래 한 줄로 최신 릴리스를 자동 다운로드하고 설치할 수 있습니다.
