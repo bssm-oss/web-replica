@@ -41,7 +41,8 @@ macOS / Linux 예시:
 ```bash
 tar -xzf webreplica_<version>_darwin_arm64.tar.gz
 cd webreplica_<version>_darwin_arm64
-./webreplica https://example.com
+./install.sh
+webreplica https://example.com
 ```
 
 Windows 예시:
@@ -49,8 +50,12 @@ Windows 예시:
 ```powershell
 Expand-Archive webreplica_<version>_windows_amd64.zip
 cd webreplica_<version>_windows_amd64\webreplica_<version>_windows_amd64
-.\webreplica.exe https://example.com
+.\install.ps1
+webreplica https://example.com
 ```
+
+`install.sh` 는 기본적으로 `/usr/local/bin/webreplica` 에 설치합니다. 권한이 필요하면 `sudo` 비밀번호를 물어볼 수 있습니다.
+Windows의 `install.ps1` 은 `%USERPROFILE%\bin` 에 설치하고 사용자 PATH에 추가합니다. 새 터미널을 열면 `webreplica` 명령을 바로 쓸 수 있습니다.
 
 ### 2. Go로 설치
 
