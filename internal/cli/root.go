@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -19,16 +20,42 @@ type Options struct {
 	Timeout           time.Duration
 }
 
+type RootConfig struct {
+	Name          string
+	DefaultOutDir string
+}
+
 func NewRootCmd() *cobra.Command {
+	return NewRootCmdWithConfig(RootConfig{Name: "siteforge", DefaultOutDir: "./siteforge-output"})
+}
+
+func NewWebReplicaCmd() *cobra.Command {
+	return NewRootCmdWithConfig(RootConfig{Name: "webreplica", DefaultOutDir: "./generated-site"})
+}
+
+func NewRootCmdWithConfig(cfg RootConfig) *cobra.Command {
+	if cfg.Name == "" {
+		cfg.Name = "siteforge"
+	}
+	if cfg.DefaultOutDir == "" {
+		cfg.DefaultOutDir = "./siteforge-output"
+	}
 	opts := &Options{}
 	cmd := &cobra.Command{
-		Use:           "siteforge",
+		Use:           fmt.Sprintf("%s [url]", cfg.Name),
 		Short:         "Generate safe frontend reimplementations from authorized website URLs",
-		Long:          "Siteforge analyzes publicly accessible websites and generates inspired, safety-aware frontend reimplementations without copying protected branding, long-form text, or tracking code.",
+		Long:          "Analyze a publicly accessible website and generate an inspired, safety-aware frontend reimplementation without copying protected branding, long-form text, or tracking code.\n\nQuick use:\n  " + cfg.Name + " https://example.com",
+		Args:          cobra.MaximumNArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			return runBuild(cmd, opts, args[0])
+		},
 	}
-	cmd.PersistentFlags().StringVar(&opts.OutDir, "out", "./siteforge-output", "Output directory for generated artifacts or projects")
+	cmd.PersistentFlags().StringVar(&opts.OutDir, "out", cfg.DefaultOutDir, "Output directory for generated artifacts or projects")
 	cmd.PersistentFlags().StringVar(&opts.Stack, "stack", "vite-react-tailwind", "Frontend stack to generate")
 	cmd.PersistentFlags().StringVar(&opts.Viewport, "viewport", "desktop,tablet,mobile", "Viewport selection: desktop, tablet, mobile, all, or comma-separated")
 	cmd.PersistentFlags().BoolVar(&opts.AllowOwnedAssets, "allow-owned-assets", false, "Allow same-origin owned image/font downloads")

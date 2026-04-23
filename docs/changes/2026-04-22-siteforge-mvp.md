@@ -23,6 +23,7 @@
 - Codex live output 스트리밍에도 secret redaction 적용
 - non-interactive `codex exec` 가 로컬 MCP/플러그인 설정에 끌려가지 않도록 ephemeral + feature disable + empty `mcp_servers` override 적용
 - non-interactive generator 프롬프트에 “즉시 scaffold 시작, 외부 탐색 금지” 제약 추가
+- `webreplica <url>` 단축 엔트리포인트 추가. 기본 출력은 `./generated-site` 이며 전체 build 파이프라인을 바로 실행한다.
 - README, AGENTS, CI, 테스트 추가
 
 ## 설계 이유
