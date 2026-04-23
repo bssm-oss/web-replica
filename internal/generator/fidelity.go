@@ -47,6 +47,13 @@ CRAFT DETAILS:
 - All Korean text must exactly match the source content from RawHTML and BriefMarkdown.
 - No placeholder "Lorem ipsum" — use the actual Korean copy from the source.
 
+HERO CONTENT — MANDATORY:
+- The hero section must display the site's PRIMARY brand message, NOT a section category label.
+- Use the page <title> and <meta description> from DesignSpec ("page.title", "page.description") as the source for the hero headline. Split the description into an eyebrow + h1 if it contains a comma or line break.
+  Example: description "금융의 모든 것, 토스에서 쉽고 간편하게" → eyebrow "금융의 모든 것" + h1 "토스에서 쉽고 간편하게".
+- Section category labels from the navigation (e.g., "홈·소비", "송금", "신용", "결제", "투자") must NOT appear as the hero h1. They belong as eyebrow labels in their own dedicated sections below the hero.
+- The hero h1 must be the site's core brand tagline — the single most prominent marketing message.
+
 HERO LAYOUT — MANDATORY AT DESKTOP (≥900px):
 - The hero section MUST use a 2-column CSS grid: left column = eyebrow + h1 + body copy + CTA pill button; right column = 3D scene stage.
 - DO NOT center everything in a single column. Left-align the copy in the left column.
