@@ -22,6 +22,28 @@ webreplica https://원하는사이트.com
 
 `./webreplica` 처럼 현재 폴더 실행 파일 경로를 붙일 필요가 없습니다. GitHub Release 압축 파일 안의 `install.sh` 또는 `install.ps1` 이 `webreplica` 명령을 PATH에 설치해 줍니다.
 
+## curl로 바로 설치
+
+macOS / Linux에서는 아래 한 줄로 최신 릴리스를 자동 다운로드하고 설치할 수 있습니다.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bssm-oss/web-replica/main/scripts/install-webreplica.sh | sh
+```
+
+설치 후에는 어느 폴더에서든 이렇게 실행하면 됩니다.
+
+```bash
+webreplica https://원하는사이트.com
+```
+
+주의: 이 도구는 원본 사이트를 픽셀 단위로 **완전히 똑같이 복제하는 도구가 아닙니다.** 기본값은 저작권/브랜드/추적 스크립트/장문 콘텐츠를 그대로 복사하지 않는 안전한 inspired reimplementation 입니다. 내 소유 사이트의 일부 에셋만 명시적으로 허용하려면 고급 옵션 `--allow-owned-assets` 를 사용하세요.
+
+설치 위치를 직접 지정하고 싶으면:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bssm-oss/web-replica/main/scripts/install-webreplica.sh | WEBREPLICA_INSTALL_DIR="$HOME/.local/bin" sh
+```
+
 ## 요구 사항
 
 - Go 1.26+
