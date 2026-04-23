@@ -25,6 +25,7 @@
 - non-interactive generator 프롬프트에 “즉시 scaffold 시작, 외부 탐색 금지” 제약 추가
 - `webreplica <url>` 단축 엔트리포인트 추가. 기본 출력은 `./generated-site` 이며 전체 build 파이프라인을 바로 실행한다.
 - 태그 push 시 GitHub Releases에 macOS/Linux/Windows용 `webreplica` 실행 파일을 자동 업로드하는 release workflow 추가.
+- release archive에 `install.sh` / `install.ps1` 을 포함해 한 번 설치 후 `webreplica <url>` 로 실행할 수 있게 했다.
 - README, AGENTS, CI, 테스트 추가
 
 ## 설계 이유
