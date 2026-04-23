@@ -117,6 +117,20 @@ codex
 
 위 `codex` 명령으로 공식 로그인 절차를 진행하면 됩니다. 이 프로젝트는 `~/.codex/auth.json` 을 읽지 않으며, 토큰을 직접 처리하지 않습니다.
 
+`webreplica`에서 바로 공식 Codex 로그인 화면을 열고 싶으면 아래 명령을 쓰면 됩니다.
+
+```bash
+webreplica login
+```
+
+로그인 상태만 확인하려면:
+
+```bash
+webreplica login --status
+```
+
+중요: `webreplica login` 은 OpenAI/Codex OAuth를 직접 구현하지 않습니다. 공식 `codex login` 명령을 실행할 뿐이며, `webreplica`는 access token, refresh token, `~/.codex/auth.json` 을 읽거나 저장하지 않습니다.
+
 이제 아래처럼 링크만 넣으면 됩니다.
 
 ```bash
