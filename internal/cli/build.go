@@ -60,7 +60,8 @@ func runBuild(cmd *cobra.Command, opts *Options, sourceURL string) error {
 		DesignSpecPath:    analysis.DesignSpecPath,
 		CodexModel:        opts.CodexModel,
 		CodexApprovalMode: opts.CodexApprovalMode,
-		MaxRepairAttempts: 2,
+		MaxRepairAttempts:      5,
+		OriginalScreenshotsDir: analysis.ScreenshotsDir,
 		Timeout:           opts.Timeout,
 		Logger:            logger,
 	})

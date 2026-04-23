@@ -63,6 +63,9 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 		return Result{}, err
 	}
 	designSpec := buildDesignSpec(validated, fetched, htmlAnalysis, captures, layout.RunDir, cfg.AllowOwnedAssets)
+	designSpec.RawHTMLPath = "raw-source.html"
+	rawHTMLPath := filepath.Join(layout.RunDir, "raw-source.html")
+	_ = fsutil.SafeWriteFile(rawHTMLPath, fetched.Body, 0o644)
 	designSpecPath := filepath.Join(layout.RunDir, "design-spec.json")
 	briefPath := filepath.Join(layout.RunDir, "brief.md")
 	rawOutlinePath := filepath.Join(layout.RunDir, "raw-outline.json")
@@ -103,7 +106,7 @@ func buildDesignSpec(validated ValidatedURL, fetched FetchedPage, htmlAnalysis H
 		SchemaVersion: "0.1",
 		SourceURL:     validated.Source,
 		NormalizedURL: validated.Normalized,
-		Mode:          "inspired_reimplementation",
+		Mode:          "clone",
 		CreatedAt:     fetched.FetchedAt.Format(time.RFC3339),
 		Page: spec.Page{
 			Title:          htmlAnalysis.Title,
@@ -121,11 +124,7 @@ func buildDesignSpec(validated ValidatedURL, fetched FetchedPage, htmlAnalysis H
 			Fonts:              filterAssets(htmlAnalysis.CandidateAssets, "font", allowOwnedAssets),
 		},
 		GenerationRules: []string{
-			"Do not copy protected logos or branding.",
-			"Do not copy long original text.",
-			"Create original placeholder copy.",
 			"Use responsive accessible components.",
-			"Do not include third-party tracking scripts.",
 		},
 	}
 }

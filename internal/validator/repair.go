@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bssm-oss/web-replica/internal/codex"
@@ -14,15 +15,16 @@ import (
 )
 
 type Config struct {
-	ProjectDir        string
-	RunDir            string
-	SourceURL         string
-	DesignSpecPath    string
-	CodexModel        string
-	CodexApprovalMode string
-	MaxRepairAttempts int
-	Timeout           time.Duration
-	Logger            *logging.Logger
+	ProjectDir             string
+	RunDir                 string
+	SourceURL              string
+	DesignSpecPath         string
+	CodexModel             string
+	CodexApprovalMode      string
+	MaxRepairAttempts      int
+	OriginalScreenshotsDir string
+	Timeout                time.Duration
+	Logger                 *logging.Logger
 }
 
 type Result struct {
@@ -36,10 +38,19 @@ var (
 	runRepairFn              = runRepair
 )
 
+func appendVisualComparison(cfg Config, notes []string) []string {
+	generatedScreenshotPath := extractGeneratedScreenshotPath(notes)
+	if cfg.OriginalScreenshotsDir != "" && generatedScreenshotPath != "" {
+		visualNotes, _ := CompareWithOriginal(cfg.OriginalScreenshotsDir, generatedScreenshotPath)
+		notes = append(notes, visualNotes...)
+	}
+	return notes
+}
+
 func RunBuildAndRepair(ctx context.Context, cfg Config) (Result, error) {
 	attempts := cfg.MaxRepairAttempts
 	if attempts <= 0 {
-		attempts = 2
+		attempts = 5
 	}
 	var lastBuild BuildResult
 	var lastNotes []string
@@ -50,6 +61,7 @@ func RunBuildAndRepair(ctx context.Context, cfg Config) (Result, error) {
 			if noteErr != nil {
 				return Result{Build: buildResult}, nil
 			}
+			notes = appendVisualComparison(cfg, notes)
 			if needsRepair, reason := notesRequireRepair(notes); !needsRepair {
 				return Result{Build: buildResult, Notes: notes}, nil
 			} else {
@@ -63,6 +75,7 @@ func RunBuildAndRepair(ctx context.Context, cfg Config) (Result, error) {
 					rebuilt, rebuildErr := buildProjectFn(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
 					if rebuildErr == nil {
 						finalNotes, _ := captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
+						finalNotes = appendVisualComparison(cfg, finalNotes)
 						needsRepairAgain, finalReason := notesRequireRepair(finalNotes)
 						if !needsRepairAgain {
 							finalNotes = append(finalNotes, fmt.Sprintf("repair command reported an error but the subsequent build passed: %v", repairErr))
@@ -83,6 +96,7 @@ func RunBuildAndRepair(ctx context.Context, cfg Config) (Result, error) {
 		}
 		lastBuild = buildResult
 		lastNotes, _ = captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
+		lastNotes = appendVisualComparison(cfg, lastNotes)
 		if attempt == attempts {
 			return Result{Build: buildResult, Notes: lastNotes}, err
 		}
@@ -91,6 +105,7 @@ func RunBuildAndRepair(ctx context.Context, cfg Config) (Result, error) {
 			rebuilt, rebuildErr := buildProjectFn(ctx, cfg.ProjectDir, cfg.RunDir, cfg.Logger)
 			if rebuildErr == nil {
 				finalNotes, _ := captureValidationNotesFn(ctx, cfg.ProjectDir, cfg.RunDir)
+				finalNotes = appendVisualComparison(cfg, finalNotes)
 				finalNotes = append(finalNotes, fmt.Sprintf("repair command reported an error but the subsequent build passed: %v", repairErr))
 				return Result{Build: rebuilt, Notes: finalNotes}, nil
 			}
@@ -147,6 +162,8 @@ func notesRequireRepair(items []string) (bool, string) {
 		case item == "horizontal overflow detected in generated page":
 			problemNotes = append(problemNotes, item)
 		case item == "blank page detected":
+			problemNotes = append(problemNotes, item)
+		case strings.HasPrefix(item, "visual comparison failed:"):
 			problemNotes = append(problemNotes, item)
 		}
 	}

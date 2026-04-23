@@ -24,6 +24,8 @@ Validation Notes:
 - 접근성 문제 개선
 
 규칙:
+- 수리 후 반드시 `npm install && npm run build`를 순서대로 실행해 build가 성공하는지 확인해라.
+- 불필요하게 전체 구조를 갈아엎지 마라.
 - Vite + React + TypeScript + Tailwind CSS 스택은 유지해라. 정적 HTML-only fallback으로 바꾸지 마라.
 - `.vendor`, tarball, 로컬 package 링크, 외부 workspace 의존 같은 우회 설치 방식은 추가하지 마라.
 - 웹 검색, 외부 문서 탐색, 로컬 디자인 스킬 탐색 없이 현재 디렉터리 파일만 수정해라.

@@ -18,8 +18,8 @@ func TestNewWebReplicaCmdDefaultsToGeneratedSite(t *testing.T) {
 	if fidelityFlag == nil {
 		t.Fatal("expected --fidelity flag")
 	}
-	if fidelityFlag.DefValue != "standard" {
-		t.Fatalf("expected default fidelity mode to be standard, got %q", fidelityFlag.DefValue)
+	if fidelityFlag.DefValue != "high" {
+		t.Fatalf("expected default fidelity mode to be high, got %q", fidelityFlag.DefValue)
 	}
 	if cmd.RunE == nil {
 		t.Fatal("expected root command to support direct URL execution")

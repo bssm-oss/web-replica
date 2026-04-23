@@ -18,6 +18,11 @@ var embeddedGenerateTemplate string
 //go:embed repair_site_default.tmpl
 var embeddedRepairTemplate string
 
+type OwnedAsset struct {
+	PublicPath  string
+	OriginalURL string
+}
+
 type PromptData struct {
 	SourceURL        string
 	Stack            string
@@ -28,6 +33,8 @@ type PromptData struct {
 	ScreenshotPaths  []string
 	BuildLogs        string
 	ValidationNotes  string
+	RawHTML          string
+	OwnedAssets      []OwnedAsset
 }
 
 func RenderGeneratePrompt(repoRoot string, data PromptData) (string, error) {

@@ -11,6 +11,7 @@ type DesignSpec struct {
 	Responsive      ResponsiveSpec `json:"responsive"`
 	Assets          AssetPolicy    `json:"assets"`
 	GenerationRules []string       `json:"generation_rules"`
+	RawHTMLPath     string         `json:"raw_html_path,omitempty"`
 }
 
 type Page struct {

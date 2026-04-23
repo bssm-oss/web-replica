@@ -65,6 +65,18 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	if err := fsutil.EnsureDir(projectDir); err != nil {
 		return Result{}, err
 	}
+	ownedAssets := copyOwnedAssets(runDir, projectDir, designSpec, cfg.Logger)
+	rawHTML := ""
+	if designSpec.RawHTMLPath != "" {
+		rawHTMLFile := filepath.Join(runDir, designSpec.RawHTMLPath)
+		if data, err := os.ReadFile(rawHTMLFile); err == nil {
+			const maxHTMLBytes = 120 * 1024
+			if len(data) > maxHTMLBytes {
+				data = data[:maxHTMLBytes]
+			}
+			rawHTML = string(data)
+		}
+	}
 	repoRoot, _ := os.Getwd()
 	prompt, err := codex.RenderGeneratePrompt(repoRoot, codex.PromptData{
 		SourceURL:        designSpec.SourceURL,
@@ -74,6 +86,8 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 		DesignSpecJSON:   codex.CompactSpec(designSpec),
 		BriefMarkdown:    string(briefPayload),
 		ScreenshotPaths:  collectScreenshotPaths(runDir, designSpec),
+		RawHTML:          rawHTML,
+		OwnedAssets:      ownedAssets,
 	})
 	if err != nil {
 		return Result{}, err
@@ -94,4 +108,39 @@ func collectScreenshotPaths(runDir string, designSpec spec.DesignSpec) []string 
 		}
 	}
 	return paths
+}
+
+func copyOwnedAssets(runDir, projectDir string, designSpec spec.DesignSpec, logger *logging.Logger) []codex.OwnedAsset {
+	var owned []codex.OwnedAsset
+	allAssets := append(append([]spec.AssetEntry{}, designSpec.Assets.Images...), designSpec.Assets.Fonts...)
+	for _, asset := range allAssets {
+		if !asset.Allowed || asset.LocalPath == "" {
+			continue
+		}
+		srcPath, err := fsutil.SafeJoin(runDir, filepath.FromSlash(asset.LocalPath))
+		if err != nil {
+			continue
+		}
+		data, err := os.ReadFile(srcPath)
+		if err != nil {
+			continue
+		}
+		relFromOwned := strings.TrimPrefix(filepath.ToSlash(asset.LocalPath), "owned-assets/")
+		publicPath := "/assets/" + relFromOwned
+		dstPath, err := fsutil.SafeJoin(projectDir, filepath.FromSlash("public/assets/"+relFromOwned))
+		if err != nil {
+			continue
+		}
+		if err := fsutil.SafeWriteFile(dstPath, data, 0o644); err != nil {
+			if logger != nil {
+				logger.Verbosef("Failed to copy asset %s: %v", asset.LocalPath, err)
+			}
+			continue
+		}
+		owned = append(owned, codex.OwnedAsset{PublicPath: publicPath, OriginalURL: asset.URL})
+		if logger != nil {
+			logger.Verbosef("Copied owned asset → %s", publicPath)
+		}
+	}
+	return owned
 }

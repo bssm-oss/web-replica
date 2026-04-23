@@ -47,14 +47,41 @@ var allowedAssetExtensions = map[string]map[string]bool{
 
 func CollectAssetCandidates(doc *goquery.Document, sourceURL string, allowOwnedAssets bool) []spec.AssetEntry {
 	base, _ := url.Parse(sourceURL)
-	items := make([]spec.AssetEntry, 0, 16)
+	seen := make(map[string]bool)
+	items := make([]spec.AssetEntry, 0, 32)
 	appendAsset := func(rawURL string, mimeType string) {
+		rawURL = strings.TrimSpace(rawURL)
+		if rawURL == "" || seen[rawURL] {
+			return
+		}
+		seen[rawURL] = true
 		entry := FilterAssetCandidate(base, rawURL, mimeType, allowOwnedAssets)
 		if entry.URL != "" {
 			items = append(items, entry)
 		}
 	}
-	doc.Find("img[src]").Each(func(_ int, s *goquery.Selection) { appendAsset(s.AttrOr("src", ""), "image") })
+	appendSrcset := func(srcset string) {
+		for _, part := range strings.Split(srcset, ",") {
+			fields := strings.Fields(strings.TrimSpace(part))
+			if len(fields) > 0 {
+				appendAsset(fields[0], "image")
+			}
+		}
+	}
+	doc.Find("img").Each(func(_ int, s *goquery.Selection) {
+		appendAsset(s.AttrOr("src", ""), "image")
+		appendAsset(s.AttrOr("data-src", ""), "image")
+		appendAsset(s.AttrOr("data-lazy-src", ""), "image")
+		if srcset, exists := s.Attr("srcset"); exists {
+			appendSrcset(srcset)
+		}
+	})
+	doc.Find("source").Each(func(_ int, s *goquery.Selection) {
+		if srcset, exists := s.Attr("srcset"); exists {
+			appendSrcset(srcset)
+		}
+	})
+	doc.Find(`link[rel="preload"][as="image"]`).Each(func(_ int, s *goquery.Selection) { appendAsset(s.AttrOr("href", ""), "image") })
 	doc.Find(`link[rel="preload"][as="font"], link[href*="font"]`).Each(func(_ int, s *goquery.Selection) { appendAsset(s.AttrOr("href", ""), "font") })
 	return items
 }
@@ -125,7 +152,7 @@ func DownloadOwnedAssets(ctx context.Context, assets []spec.AssetEntry, runDir s
 			continue
 		}
 		asset.LocalPath = relPath
-		asset.Reason = "same-origin owned asset downloaded"
+		asset.Reason = "owned asset downloaded"
 		if logger != nil {
 			logger.Verbosef("Downloaded allowed owned asset to %s", relPath)
 		}
@@ -151,23 +178,40 @@ func FilterAssetCandidate(base *url.URL, rawURL string, mimeType string, allowOw
 			return spec.AssetEntry{URL: resolved.String(), MimeType: mimeType, Allowed: false, Reason: "tracking or advertising asset blocked", LocalPath: sanitizedAssetName(resolved.Path)}
 		}
 	}
-	sameOrigin := base != nil &&
+	sameDomain := base != nil &&
 		strings.EqualFold(base.Scheme, resolved.Scheme) &&
-		strings.EqualFold(base.Host, resolved.Host)
+		sameRootDomain(base.Host, resolved.Host)
 	localPath := sanitizedAssetName(resolved.Path)
 	if !hasAllowedAssetExtension(resolved.Path, mimeType) {
 		return spec.AssetEntry{URL: resolved.String(), MimeType: mimeType, Allowed: false, Reason: "asset extension blocked by policy", LocalPath: localPath}
 	}
-	allowed := allowOwnedAssets && sameOrigin && (mimeType == "image" || mimeType == "font")
+	allowed := allowOwnedAssets && sameDomain && (mimeType == "image" || mimeType == "font")
 	reason := "placeholders used by default"
 	if allowed {
-		reason = "same-origin owned asset allowed"
+		reason = "owned asset allowed (same domain/CDN)"
 	}
 	if mimeType == "script" {
 		allowed = false
 		reason = "script downloads are never allowed"
 	}
 	return spec.AssetEntry{URL: resolved.String(), MimeType: mimeType, Allowed: allowed, Reason: reason, LocalPath: localPath}
+}
+
+func sameRootDomain(hostA, hostB string) bool {
+	aHost := strings.ToLower(stripPort(hostA))
+	bHost := strings.ToLower(stripPort(hostB))
+	// IP addresses have no subdomain hierarchy — require exact host:port match.
+	if net.ParseIP(aHost) != nil || net.ParseIP(bHost) != nil {
+		return strings.EqualFold(hostA, hostB)
+	}
+	return aHost == bHost || strings.HasSuffix(bHost, "."+aHost) || strings.HasSuffix(aHost, "."+bHost)
+}
+
+func stripPort(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		return h
+	}
+	return host
 }
 
 func mimeTypeMatches(header string, want string) bool {
@@ -246,8 +290,8 @@ func newOwnedAssetHTTPClient(ctx context.Context, assetURL *url.URL) *http.Clien
 			if assetURL == nil {
 				return nil
 			}
-			if !strings.EqualFold(assetURL.Scheme, req.URL.Scheme) || !strings.EqualFold(assetURL.Host, req.URL.Host) {
-				return fmt.Errorf("asset redirect left same origin")
+			if !strings.EqualFold(assetURL.Scheme, req.URL.Scheme) || !sameRootDomain(assetURL.Host, req.URL.Host) {
+				return fmt.Errorf("asset redirect left same domain")
 			}
 			return nil
 		},

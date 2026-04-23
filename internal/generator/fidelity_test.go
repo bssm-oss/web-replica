@@ -38,7 +38,7 @@ func TestNormalizeFidelity(t *testing.T) {
 
 func TestFidelityGuidanceHighStaysSafe(t *testing.T) {
 	guidance := FidelityGuidance(FidelityHigh)
-	for _, phrase := range []string{"Match", "screenshots", "Do not copy protected logos", "neutral equivalents"} {
+	for _, phrase := range []string{"visually indistinguishable", "padding", "Responsive", "Korean text"} {
 		if !strings.Contains(guidance, phrase) {
 			t.Fatalf("expected high fidelity guidance to contain %q: %s", phrase, guidance)
 		}

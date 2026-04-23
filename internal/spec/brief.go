@@ -30,9 +30,6 @@ func BuildBrief(designSpec DesignSpec) string {
 	b.WriteString(fmt.Sprintf("- Desktop: %s\n", strings.Join(designSpec.Responsive.Desktop.Notes, "; ")))
 	b.WriteString(fmt.Sprintf("- Tablet: %s\n", strings.Join(designSpec.Responsive.Tablet.Notes, "; ")))
 	b.WriteString(fmt.Sprintf("- Mobile: %s\n\n", strings.Join(designSpec.Responsive.Mobile.Notes, "; ")))
-	b.WriteString("## Asset Policy\n")
-	b.WriteString("기본적으로 placeholder 사용.\n")
-	b.WriteString("사용자 소유 asset만 명시 플래그가 있을 때 허용.\n\n")
 	b.WriteString("## Generation Notes\n")
 	for _, rule := range designSpec.GenerationRules {
 		b.WriteString("- " + rule + "\n")
