@@ -42,6 +42,50 @@ func RedactSecrets(input string) string {
 	return masked
 }
 
+type RedactingWriter struct {
+	target io.Writer
+	buffer strings.Builder
+	mu     sync.Mutex
+}
+
+func NewRedactingWriter(target io.Writer) *RedactingWriter {
+	return &RedactingWriter{target: target}
+}
+
+func (w *RedactingWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.buffer.Write(p)
+	return len(p), w.flushCompleteLines()
+}
+
+func (w *RedactingWriter) Flush() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.buffer.Len() == 0 {
+		return nil
+	}
+	_, err := io.WriteString(w.target, RedactSecrets(w.buffer.String()))
+	w.buffer.Reset()
+	return err
+}
+
+func (w *RedactingWriter) flushCompleteLines() error {
+	buffer := w.buffer.String()
+	lastNewline := strings.LastIndexByte(buffer, '\n')
+	if lastNewline == -1 {
+		return nil
+	}
+	complete := buffer[:lastNewline+1]
+	remaining := buffer[lastNewline+1:]
+	if _, err := io.WriteString(w.target, RedactSecrets(complete)); err != nil {
+		return err
+	}
+	w.buffer.Reset()
+	w.buffer.WriteString(remaining)
+	return nil
+}
+
 func (l *Logger) Infof(format string, args ...any) {
 	l.write(l.out, format, args...)
 }

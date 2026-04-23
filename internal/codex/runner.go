@@ -59,9 +59,13 @@ func Run(ctx context.Context, opts RunOptions) (RunResult, error) {
 	cmd.Dir = absOutputDir
 	var stdoutBuf bytes.Buffer
 	var stderrBuf bytes.Buffer
-	cmd.Stdout = io.MultiWriter(&stdoutBuf, os.Stdout)
-	cmd.Stderr = io.MultiWriter(&stderrBuf, os.Stderr)
+	stdoutWriter := logging.NewRedactingWriter(os.Stdout)
+	stderrWriter := logging.NewRedactingWriter(os.Stderr)
+	cmd.Stdout = io.MultiWriter(&stdoutBuf, stdoutWriter)
+	cmd.Stderr = io.MultiWriter(&stderrBuf, stderrWriter)
 	err = cmd.Run()
+	_ = stdoutWriter.Flush()
+	_ = stderrWriter.Flush()
 	actualApproval := detectApprovalMode(stderrBuf.String())
 	logPath := filepath.Join(opts.RunDir, "codex-output.log")
 	logPayload := "STDOUT\n" + logging.RedactSecrets(stdoutBuf.String()) + "\n\nSTDERR\n" + logging.RedactSecrets(stderrBuf.String()) + "\n"

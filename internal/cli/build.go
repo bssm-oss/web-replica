@@ -16,58 +16,62 @@ func newBuildCmd(opts *Options) *cobra.Command {
 		Short: "Run the full analyze and generate pipeline",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(cmd.Context(), opts.Timeout)
-			defer cancel()
-			logger := logging.New(opts.Verbose)
-			analysis, err := analyzer.Run(ctx, analyzer.Config{
-				URL:              args[0],
-				OutputDir:        opts.OutDir,
-				ViewportSelector: opts.Viewport,
-				AllowOwnedAssets: opts.AllowOwnedAssets,
-				Timeout:          opts.Timeout,
-				Logger:           logger,
-			})
-			if err != nil {
-				return err
-			}
-			if opts.NoAI {
-				logger.Infof("Skipping generation because --no-ai was set")
-				return nil
-			}
-			generation, err := generator.Run(ctx, generator.Config{
-				SpecPath:          analysis.DesignSpecPath,
-				OutputDir:         opts.OutDir,
-				Stack:             opts.Stack,
-				CodexModel:        opts.CodexModel,
-				CodexApprovalMode: opts.CodexApprovalMode,
-				Timeout:           opts.Timeout,
-				Logger:            logger,
-			})
-			if err != nil {
-				return err
-			}
-			validation, err := validator.RunBuildAndRepair(ctx, validator.Config{
-				ProjectDir:        generation.ProjectDir,
-				RunDir:            analysis.RunDir,
-				SourceURL:         args[0],
-				DesignSpecPath:    analysis.DesignSpecPath,
-				CodexModel:        opts.CodexModel,
-				CodexApprovalMode: opts.CodexApprovalMode,
-				MaxRepairAttempts: 2,
-				Timeout:           opts.Timeout,
-				Logger:            logger,
-			})
-			if err != nil {
-				return err
-			}
-			logger.Infof("Build completed successfully.")
-			logger.Infof("Run directory: %s", analysis.RunDir)
-			logger.Infof("Generated project: %s", generation.ProjectDir)
-			logger.Infof("Build log: %s", validation.Build.LogPath)
-			logger.Infof("Next steps:")
-			logger.Infof("  cd %s", generation.ProjectDir)
-			logger.Infof("  npm run preview")
-			return nil
+			return runBuild(cmd, opts, args[0])
 		},
 	}
+}
+
+func runBuild(cmd *cobra.Command, opts *Options, sourceURL string) error {
+	ctx, cancel := context.WithTimeout(cmd.Context(), opts.Timeout)
+	defer cancel()
+	logger := logging.New(opts.Verbose)
+	analysis, err := analyzer.Run(ctx, analyzer.Config{
+		URL:              sourceURL,
+		OutputDir:        opts.OutDir,
+		ViewportSelector: opts.Viewport,
+		AllowOwnedAssets: opts.AllowOwnedAssets,
+		Timeout:          opts.Timeout,
+		Logger:           logger,
+	})
+	if err != nil {
+		return err
+	}
+	if opts.NoAI {
+		logger.Infof("Skipping generation because --no-ai was set")
+		return nil
+	}
+	generation, err := generator.Run(ctx, generator.Config{
+		SpecPath:          analysis.DesignSpecPath,
+		OutputDir:         opts.OutDir,
+		Stack:             opts.Stack,
+		CodexModel:        opts.CodexModel,
+		CodexApprovalMode: opts.CodexApprovalMode,
+		Timeout:           opts.Timeout,
+		Logger:            logger,
+	})
+	if err != nil {
+		return err
+	}
+	validation, err := validator.RunBuildAndRepair(ctx, validator.Config{
+		ProjectDir:        generation.ProjectDir,
+		RunDir:            analysis.RunDir,
+		SourceURL:         sourceURL,
+		DesignSpecPath:    analysis.DesignSpecPath,
+		CodexModel:        opts.CodexModel,
+		CodexApprovalMode: opts.CodexApprovalMode,
+		MaxRepairAttempts: 2,
+		Timeout:           opts.Timeout,
+		Logger:            logger,
+	})
+	if err != nil {
+		return err
+	}
+	logger.Infof("Build completed successfully.")
+	logger.Infof("Run directory: %s", analysis.RunDir)
+	logger.Infof("Generated project: %s", generation.ProjectDir)
+	logger.Infof("Build log: %s", validation.Build.LogPath)
+	logger.Infof("Next steps:")
+	logger.Infof("  cd %s", generation.ProjectDir)
+	logger.Infof("  npm run preview")
+	return nil
 }

@@ -34,3 +34,13 @@ func TestAnalyzeHTML(t *testing.T) {
 		t.Fatalf("expected image alt extraction, got %#v", result.Structure.Images)
 	}
 }
+
+func TestAnalyzeHTMLEmptyCollectionsStayNonNil(t *testing.T) {
+	result, err := AnalyzeHTML([]byte(`<html lang="en"><head><title>Only Heading</title></head><body><main><h1>Hello</h1></main></body></html>`), "https://example.com", false)
+	if err != nil {
+		t.Fatalf("AnalyzeHTML returned error: %v", err)
+	}
+	if result.Structure.Landmarks == nil || result.Structure.Navigation == nil || result.Structure.Sections == nil || result.Structure.Forms == nil || result.Structure.Images == nil {
+		t.Fatalf("expected empty collections to be initialized, got %#v", result.Structure)
+	}
+}

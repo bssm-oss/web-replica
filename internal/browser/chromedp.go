@@ -4,10 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/netip"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/chromedp/cdproto/fetch"
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
@@ -51,6 +57,17 @@ type ValidationInfo struct {
 	BlankPage          bool
 }
 
+var blockedBrowserCIDRs = mustPrefixes([]string{
+	"127.0.0.0/8",
+	"10.0.0.0/8",
+	"172.16.0.0/12",
+	"192.168.0.0/16",
+	"169.254.0.0/16",
+	"::1/128",
+	"fc00::/7",
+	"fe80::/10",
+})
+
 func CapturePage(ctx context.Context, targetURL string, outputDir string, viewports []Viewport) ([]ViewportCapture, error) {
 	allocCtx, cancelAlloc := chromedp.NewExecAllocator(ctx, chromedp.DefaultExecAllocatorOptions[:]...)
 	defer cancelAlloc()
@@ -78,10 +95,13 @@ func captureSingle(ctx context.Context, targetURL string, outputDir string, view
 	}
 	taskCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
+	if err := enableRequestGuard(taskCtx, false); err != nil {
+		return ViewportCapture{}, fmt.Errorf("enable request guard: %w", err)
+	}
 	err := chromedp.Run(taskCtx,
 		chromedp.EmulateViewport(viewport.Width, viewport.Height),
 		chromedp.Navigate(targetURL),
-		chromedp.Sleep(2*time.Second),
+		waitForPageStable(),
 		chromedp.ActionFunc(func(ctx context.Context) error { return chromedp.FullScreenshot(&fullPNG, 90).Do(ctx) }),
 		chromedp.CaptureScreenshot(&foldPNG),
 		chromedp.Evaluate(styleExtractionScript(), &samplesJSON),
@@ -140,7 +160,7 @@ func CaptureValidation(ctx context.Context, targetURL string, screenshotPath str
 	err := chromedp.Run(browserCtx,
 		chromedp.EmulateViewport(1440, 1000),
 		chromedp.Navigate(targetURL),
-		chromedp.Sleep(2*time.Second),
+		waitForPageStable(),
 		chromedp.CaptureScreenshot(&png),
 		chromedp.Evaluate(`(() => ({
 			pageHeight: document.documentElement.scrollHeight,
@@ -192,4 +212,114 @@ func styleExtractionScript() string {
 		}
 		return nodes;
 	})()`
+}
+
+func waitForPageStable() chromedp.Action {
+	return chromedp.Tasks{
+		chromedp.WaitReady("body", chromedp.ByQuery),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			readyCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			defer cancel()
+			ticker := time.NewTicker(150 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				var ready bool
+				if err := chromedp.Evaluate(`document.readyState === "complete" && !!document.body`, &ready).Do(readyCtx); err == nil && ready {
+					return chromedp.Sleep(250 * time.Millisecond).Do(readyCtx)
+				}
+				select {
+				case <-readyCtx.Done():
+					return readyCtx.Err()
+				case <-ticker.C:
+				}
+			}
+		}),
+	}
+}
+
+func enableRequestGuard(ctx context.Context, allowLocal bool) error {
+	chromedp.ListenTarget(ctx, func(ev any) {
+		paused, ok := ev.(*fetch.EventRequestPaused)
+		if !ok {
+			return
+		}
+		go func() {
+			var action chromedp.Action = fetch.ContinueRequest(paused.RequestID)
+			if !isBrowserRequestAllowed(ctx, paused.Request.URL, allowLocal) {
+				action = fetch.FailRequest(paused.RequestID, network.ErrorReasonBlockedByClient)
+			}
+			_ = chromedp.Run(ctx, action)
+		}()
+	})
+	return chromedp.Run(ctx, fetch.Enable().WithPatterns([]*fetch.RequestPattern{{URLPattern: "*"}}))
+}
+
+func isBrowserRequestAllowed(ctx context.Context, rawURL string, allowLocal bool) bool {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	switch parsed.Scheme {
+	case "", "about", "blob", "data":
+		return true
+	case "http", "https":
+		host := strings.ToLower(parsed.Hostname())
+		if allowLocal && (host == "localhost" || strings.HasSuffix(host, ".localhost") || host == "127.0.0.1" || host == "::1") {
+			return true
+		}
+		return validateBrowserHost(ctx, host) == nil
+	default:
+		return false
+	}
+}
+
+func validateBrowserHost(ctx context.Context, host string) error {
+	if host == "" {
+		return fmt.Errorf("empty host")
+	}
+	if ip, err := netip.ParseAddr(host); err == nil {
+		if isBlockedBrowserIP(ip) {
+			return fmt.Errorf("blocked private ip")
+		}
+		return nil
+	}
+	resolver := net.Resolver{}
+	addrs, err := resolver.LookupIP(ctx, "ip", host)
+	if err != nil {
+		return err
+	}
+	if len(addrs) == 0 {
+		return fmt.Errorf("no ip addresses resolved")
+	}
+	for _, addr := range addrs {
+		ip, ok := netip.AddrFromSlice(addr)
+		if !ok {
+			continue
+		}
+		if isBlockedBrowserIP(ip) {
+			return fmt.Errorf("blocked private ip")
+		}
+	}
+	return nil
+}
+
+func isBlockedBrowserIP(ip netip.Addr) bool {
+	for _, prefix := range blockedBrowserCIDRs {
+		if prefix.Contains(ip) {
+			return true
+		}
+	}
+	return ip.IsLoopback() || ip.IsLinkLocalMulticast() || ip.IsLinkLocalUnicast() || ip.IsPrivate() || ip.IsMulticast() || ip.IsUnspecified()
+}
+
+func mustPrefixes(values []string) []netip.Prefix {
+	prefixes := make([]netip.Prefix, 0, len(values))
+	for _, value := range values {
+		prefix, err := netip.ParsePrefix(value)
+		if err != nil {
+			panic(err)
+		}
+		prefixes = append(prefixes, prefix)
+	}
+	return prefixes
 }
