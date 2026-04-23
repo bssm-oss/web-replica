@@ -44,6 +44,7 @@ func runBuild(cmd *cobra.Command, opts *Options, sourceURL string) error {
 		SpecPath:          analysis.DesignSpecPath,
 		OutputDir:         opts.OutDir,
 		Stack:             opts.Stack,
+		Fidelity:          opts.Fidelity,
 		CodexModel:        opts.CodexModel,
 		CodexApprovalMode: opts.CodexApprovalMode,
 		Timeout:           opts.Timeout,

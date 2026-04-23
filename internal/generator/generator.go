@@ -19,6 +19,7 @@ type Config struct {
 	SpecPath          string
 	OutputDir         string
 	Stack             string
+	Fidelity          string
 	CodexModel        string
 	CodexApprovalMode string
 	Timeout           time.Duration
@@ -38,6 +39,10 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	}
 	if !IsImplementedStack(cfg.Stack) {
 		return Result{}, fmt.Errorf("stack %q is reserved for a future implementation", cfg.Stack)
+	}
+	fidelity, err := NormalizeFidelity(cfg.Fidelity)
+	if err != nil {
+		return Result{}, err
 	}
 	specPayload, err := os.ReadFile(cfg.SpecPath)
 	if err != nil {
@@ -62,11 +67,13 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	}
 	repoRoot, _ := os.Getwd()
 	prompt, err := codex.RenderGeneratePrompt(repoRoot, codex.PromptData{
-		SourceURL:       designSpec.SourceURL,
-		Stack:           cfg.Stack,
-		DesignSpecJSON:  codex.CompactSpec(designSpec),
-		BriefMarkdown:   string(briefPayload),
-		ScreenshotPaths: collectScreenshotPaths(runDir, designSpec),
+		SourceURL:        designSpec.SourceURL,
+		Stack:            cfg.Stack,
+		Fidelity:         fidelity,
+		FidelityGuidance: FidelityGuidance(fidelity),
+		DesignSpecJSON:   codex.CompactSpec(designSpec),
+		BriefMarkdown:    string(briefPayload),
+		ScreenshotPaths:  collectScreenshotPaths(runDir, designSpec),
 	})
 	if err != nil {
 		return Result{}, err

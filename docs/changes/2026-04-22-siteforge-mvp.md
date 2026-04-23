@@ -28,6 +28,7 @@
 - release archive에 `install.sh` / `install.ps1` 을 포함해 한 번 설치 후 `webreplica <url>` 로 실행할 수 있게 했다.
 - `curl -fsSL ... | sh` 로 최신 GitHub Release를 자동 감지해 내려받고 설치하는 remote installer를 추가했다.
 - `webreplica login` / `webreplica login --status` 를 추가해 공식 `codex login` 흐름을 실행할 수 있게 했다. OAuth 토큰은 직접 읽거나 저장하지 않는다.
+- `--fidelity high` 옵션을 추가해 스크린샷 기반 레이아웃/간격/색감/반응형을 더 가깝게 맞추는 안전한 고충실도 모드를 지원한다.
 - README, AGENTS, CI, 테스트 추가
 
 ## 설계 이유

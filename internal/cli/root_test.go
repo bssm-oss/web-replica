@@ -14,6 +14,13 @@ func TestNewWebReplicaCmdDefaultsToGeneratedSite(t *testing.T) {
 	if outFlag.DefValue != "./generated-site" {
 		t.Fatalf("expected webreplica default out dir to be ./generated-site, got %q", outFlag.DefValue)
 	}
+	fidelityFlag := cmd.PersistentFlags().Lookup("fidelity")
+	if fidelityFlag == nil {
+		t.Fatal("expected --fidelity flag")
+	}
+	if fidelityFlag.DefValue != "standard" {
+		t.Fatalf("expected default fidelity mode to be standard, got %q", fidelityFlag.DefValue)
+	}
 	if cmd.RunE == nil {
 		t.Fatal("expected root command to support direct URL execution")
 	}

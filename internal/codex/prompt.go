@@ -19,13 +19,15 @@ var embeddedGenerateTemplate string
 var embeddedRepairTemplate string
 
 type PromptData struct {
-	SourceURL       string
-	Stack           string
-	DesignSpecJSON  string
-	BriefMarkdown   string
-	ScreenshotPaths []string
-	BuildLogs       string
-	ValidationNotes string
+	SourceURL        string
+	Stack            string
+	Fidelity         string
+	FidelityGuidance string
+	DesignSpecJSON   string
+	BriefMarkdown    string
+	ScreenshotPaths  []string
+	BuildLogs        string
+	ValidationNotes  string
 }
 
 func RenderGeneratePrompt(repoRoot string, data PromptData) (string, error) {

@@ -11,6 +11,7 @@ type Options struct {
 	OutDir            string
 	Stack             string
 	Viewport          string
+	Fidelity          string
 	AllowOwnedAssets  bool
 	NoAI              bool
 	Verbose           bool
@@ -58,6 +59,7 @@ func NewRootCmdWithConfig(cfg RootConfig) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&opts.OutDir, "out", cfg.DefaultOutDir, "Output directory for generated artifacts or projects")
 	cmd.PersistentFlags().StringVar(&opts.Stack, "stack", "vite-react-tailwind", "Frontend stack to generate")
 	cmd.PersistentFlags().StringVar(&opts.Viewport, "viewport", "desktop,tablet,mobile", "Viewport selection: desktop, tablet, mobile, all, or comma-separated")
+	cmd.PersistentFlags().StringVar(&opts.Fidelity, "fidelity", "standard", "Visual fidelity mode: standard or high")
 	cmd.PersistentFlags().BoolVar(&opts.AllowOwnedAssets, "allow-owned-assets", false, "Allow same-origin owned image/font downloads")
 	cmd.PersistentFlags().BoolVar(&opts.NoAI, "no-ai", false, "Skip Codex generation and only create analysis artifacts")
 	cmd.PersistentFlags().BoolVar(&opts.Verbose, "verbose", false, "Enable verbose logs")
