@@ -27,6 +27,7 @@
 - 태그 push 시 GitHub Releases에 macOS/Linux/Windows용 `webreplica` 실행 파일을 자동 업로드하는 release workflow 추가.
 - release archive에 `install.sh` / `install.ps1` 을 포함해 한 번 설치 후 `webreplica <url>` 로 실행할 수 있게 했다.
 - `curl -fsSL ... | sh` 로 최신 GitHub Release를 자동 감지해 내려받고 설치하는 remote installer를 추가했다.
+- `webreplica login` / `webreplica login --status` 를 추가해 공식 `codex login` 흐름을 실행할 수 있게 했다. OAuth 토큰은 직접 읽거나 저장하지 않는다.
 - README, AGENTS, CI, 테스트 추가
 
 ## 설계 이유

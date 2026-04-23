@@ -67,6 +67,7 @@ func NewRootCmdWithConfig(cfg RootConfig) *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", 20*time.Minute, "Timeout for network, browser, and Codex operations")
 
 	cmd.AddCommand(newDoctorCmd(opts))
+	cmd.AddCommand(newLoginCmd(opts))
 	cmd.AddCommand(newAnalyzeCmd(opts))
 	cmd.AddCommand(newGenerateCmd(opts))
 	cmd.AddCommand(newBuildCmd(opts))
