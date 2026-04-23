@@ -38,7 +38,7 @@ CSS 품질 기준 (반드시 충족):
 - styles.css 또는 컴포넌트별 CSS에 CSS custom properties(변수)로 디자인 토큰을 정의해라 (색상, 폰트, 간격).
 - 섹션 상하 padding은 clamp(100px, 16vw, 250px) 수준으로 충분히 넣어라. 빽빽하게 만들지 마라.
 - 타이포그래피: heading은 font-weight 800–900, letter-spacing −0.04em ~ −0.06em, clamp() fluid size.
-- 히어로 섹션: 전체 화면 높이(min-height: 100svh), 가운데 정렬, 배경은 방사형 그라디언트(연한 파란색 계열), 폰 목업 + floating 타일을 perspective transform으로 구현.
+- 히어로 섹션: 전체 화면 높이(min-height: 100svh), 2컬럼 grid, 배경은 거의 흰색 + 매우 연한 방사형 그라디언트(`radial-gradient(ellipse at 72% 50%, rgba(219,234,254,0.65), transparent 65%), #fff`). 진한 파란색 배경 절대 금지. 폰 목업 + floating 타일을 perspective transform으로 구현.
 - 폰 목업: width 약 160–200px, height 약 320–400px, border-radius 44px, border 10–12px solid #1f2937, box-shadow 깊이감.
 - floating 타일: position absolute, border-radius 20–28px, white 반투명 배경, 블루 box-shadow, rotateX/rotateZ perspective transform.
 - 섹션 배경: 흰색(#fff)과 연한 회색(#f9fafb)을 번갈아 사용.
@@ -67,7 +67,14 @@ CSS 품질 기준 (반드시 충족):
 {{ range .OwnedAssets }}
 - src="{{ .PublicPath }}"  (원본: {{ .OriginalURL }})
 {{ end }}
-중요: 위 파일들이 public/assets/ 폴더에 이미 있으므로 그라디언트 플레이스홀더 대신 반드시 이 실제 이미지를 사용해라.
-HTML: <img src="/assets/images/파일명" alt="..." />
-CSS: background-image: url('/assets/images/파일명')
+
+에셋 활용 규칙 (반드시 준수 — 다운로드된 이미지가 있으면 절대 그라디언트로 대체하지 마라):
+- 파일명에 'main', 'scene', '3d', 'object'가 포함 → 히어로 오른쪽 스테이지 배경 (position absolute, width ~130%, left -15%, top 50% translateY(-50%), z-index 1, opacity 0.88)
+- 파일명에 'clay', 'iPhone', 'frame'이 포함 → 폰 클레이 프레임 이미지 (width ~230px, height ~460px, 스테이지 중앙, z-index 2, rotateX(6deg) rotateZ(-2deg)). 폰이 3D 배경보다 전면에 크게 보여야 한다.
+- 파일명에 'home_screen', 'invest_screen', 'checkout', 'screen'이 포함 → 폰 프레임 내부 앱 화면 (position absolute, top 19%, left 20%, width 60%, border-radius 28px, z-index 1 — 프레임 img보다 DOM 앞에 위치)
+- 파일명에 'section1_2_01', 'section1_2_02', 'section1_2_03'이 포함 → 홈·소비 feature 섹션의 좌우 컬럼 이미지 (border-radius 28px, width 100%)
+- 파일명에 'section2_1', 'section2_2', 'section2_3', 'insu', 'document', 'apt'가 포함 → 라이프스타일 섹션의 전폭 배경 또는 주요 <img> (object-fit: cover, 절대로 작은 썸네일로 쓰지 말 것, 실제 생활 사진이므로 크게 표시)
+- 파일명에 'section4_device', 'device'가 포함 → business/dark 섹션의 디바이스 이미지 (섹션 한쪽 컬럼에 배치)
+- 파일명에 'icon-'이 포함 → 카드/섹션 아이콘 (<img> width 48px)
+- 다운로드된 이미지 파일이 OwnedAssets에 존재하면 반드시 해당 <img src>를 사용해라. CSS 그라디언트나 플레이스홀더로 대체 금지.
 {{ end }}
